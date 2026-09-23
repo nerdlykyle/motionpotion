@@ -25,7 +25,7 @@ The header uses `assets/potion-3d.webp`, a transparent two-second render of the 
 
 The build copies public images, fonts, vendor scripts, and the lightweight web GLB. It excludes the `assets/3d model/` authoring directory, Blender scenes, and cleanup references. Do not add those authoring files to `dist/` manually.
 
-Portfolio videos still load from the existing Wix-hosted URLs when opened. Move video hosting before retiring Wix. The About section retains the public LinkedIn profile link.
+Portfolio videos are served from `assets/videos/` through GitHub Pages, so the site no longer depends on Wix video hosting. The About section retains the public LinkedIn profile link.
 
 The contact form collects name, reply email and message. It submits to FormSubmit's static-site endpoint for kyle@motionpotion.studio, with the subject “A new idea is brewing — Motion Potion”. A server-checked `_honey` field sits visually offscreen, outside keyboard and screen-reader navigation. FormSubmit's default CAPTCHA and spam filtering remain enabled. The form submits normally so a CAPTCHA challenge can run when needed; JavaScript supplies an absolute return URL and shows confirmation when FormSubmit sends the visitor back. Without JavaScript, FormSubmit shows its own thank-you page. FormSubmit must be activated before normal delivery: submit one real message and click the confirmation link sent to kyle@motionpotion.studio. The confirmation email may land in spam. Do not consider inbox delivery verified until that step is complete. FormSubmit handles the submitted contact details and retains submissions under its own policy.
 

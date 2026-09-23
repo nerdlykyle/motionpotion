@@ -12,4 +12,5 @@ for(const entry of await readdir(new URL('assets/',root),{withFileTypes:true})) 
     await copyFile(new URL(`assets/${entry.name}`,root),new URL(`assets/${entry.name}`,dist));
 }
 await copyFile(new URL('assets/models/kyle-original-web.glb',root),new URL('assets/models/kyle-original-web.glb',dist));
+await cp(new URL('assets/videos/',root),new URL('assets/videos/',dist),{recursive:true});
 console.log('GitHub Pages site built in dist/');

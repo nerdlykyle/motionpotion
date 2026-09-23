@@ -77,10 +77,10 @@ import('./character.js').then(async ({ createCharacter }) => {
 });
 
 const projects = {
-  filth: { title: 'Bread & Butter — Introducing Filth', category: 'PRODUCT FILM', description: 'A product introduction for Bread & Butter Pickleball’s Filth paddle.', poster: './assets/filth.jpg', video: 'https://video.wixstatic.com/video/5bee93_d8acac61736c4a9d892125047437e915/720p/mp4/file.mp4' },
-  go: { title: 'GO! Curriculum', category: 'ANIMATED EXPLAINER', description: 'An animated introduction to GO! Curriculum for youth programs.', poster: './assets/go-curriculum.jpg', video: 'https://video.wixstatic.com/video/5bee93_ac0e63380980470b85c641d76d01a213/720p/mp4/file.mp4' },
-  urjanet: { title: 'Urjanet', category: 'BRAND STORY / EXPLAINER', description: 'A provider engagement explainer for Urjanet.', poster: './assets/urjanet.jpg', video: 'https://video.wixstatic.com/video/5bee93_8340553048b841dbb66440d07635afe2/720p/mp4/file.mp4' },
-  loco: { title: 'Bread & Butter — Loco', category: 'LOGO ANIMATION', description: 'A logo tease for Bread & Butter’s Loco paddle.', poster: './assets/loco.png', video: 'https://video.wixstatic.com/video/5bee93_73a622f6a737493f878909c326f1a70c/720p/mp4/file.mp4' }
+  filth: { title: 'Bread & Butter — Introducing Filth', category: 'PRODUCT FILM', description: 'A product introduction for Bread & Butter Pickleball’s Filth paddle.', poster: './assets/filth.jpg', video: './assets/videos/filth.mp4' },
+  go: { title: 'GO! Curriculum', category: 'ANIMATED EXPLAINER', description: 'An animated introduction to GO! Curriculum for youth programs.', poster: './assets/go-curriculum.jpg', video: './assets/videos/go.mp4' },
+  urjanet: { title: 'Urjanet', category: 'BRAND STORY / EXPLAINER', description: 'A provider engagement explainer for Urjanet.', poster: './assets/urjanet.jpg', video: './assets/videos/urjanet.mp4' },
+  loco: { title: 'Bread & Butter — Loco', category: 'LOGO ANIMATION', description: 'A logo tease for Bread & Butter’s Loco paddle.', poster: './assets/loco.png', video: './assets/videos/loco.mp4' }
 };
 const dialog = document.querySelector('#project-dialog');
 const video = document.querySelector('#project-video');
