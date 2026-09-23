@@ -66,9 +66,7 @@ dialog{border:0;background:var(--paper);color:var(--ink);border-radius:12px;widt
 @media(prefers-reduced-motion:reduce){.editing-scene>video{display:none}}
 
 /* A short, readable contact form replaces the mail-app handoff. */
-.contact-bottom{display:grid;grid-template-columns:minmax(180px,.65fr) minmax(0,1fr);align-items:start;gap:clamp(28px,6vw,95px);margin-top:43px}
-.contact-bottom>p{margin:0;padding-top:9px;font-size:14px;line-height:1.9}
-.contact-bottom>p span{display:inline-block;margin-top:12px;font-family:Georgia,serif;font-style:italic;font-size:17px}
+.contact-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.65fr);align-items:start;gap:clamp(28px,6vw,95px);margin-top:43px}
 .contact-form{position:relative;background:var(--paper);border:1px solid var(--ink);border-radius:10px;padding:clamp(22px,3vw,38px);min-width:0}
 .contact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 18px}
 .contact-field{display:flex;flex-direction:column;gap:9px;min-width:0}
@@ -82,6 +80,7 @@ dialog{border:0;background:var(--paper);color:var(--ink);border-radius:12px;widt
 .contact-form-footer{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:23px}
 .contact-form-footer .button{justify-content:center;min-width:160px}
 .contact-form-footer p{margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
+.contact-potion-slot{display:none}
 .contact-status{margin:20px 0 0;border-left:3px solid #37784a;background:#e6f0e4;padding:11px 14px;font-size:13px;line-height:1.5}
 .contact-status[data-state="error"]{border-left-color:#a33e2d;background:#f9e6db}
 .contact-status[hidden]{display:none}
@@ -89,5 +88,34 @@ dialog{border:0;background:var(--paper);color:var(--ink);border-radius:12px;widt
 .contact-send{background:var(--yellow);color:var(--ink);--button-base:#000}
 .contact-send:hover,.contact-send:focus-visible{background:var(--yellow)}
 .contact-form-footer .button:disabled{opacity:.65;transform:translateY(0);box-shadow:0 1px 0 var(--ink)}
-@media(max-width:760px){.contact-bottom{grid-template-columns:1fr;gap:22px;margin-top:24px}.contact-bottom>p{font-size:13px;padding:0}.contact-bottom>p span{margin-top:5px;font-size:16px}.contact-form{width:100%;padding:22px}}
+@media(max-width:760px){.contact-bottom{grid-template-columns:1fr;gap:22px;margin-top:24px}.contact-form{width:100%;padding:22px}}
 @media(max-width:460px){.contact-fields{grid-template-columns:1fr;gap:17px}.contact-field--wide{grid-column:auto}.contact-form-footer{align-items:flex-start;flex-direction:column;gap:16px}.contact-form-footer .button{width:100%}}
+
+/* Keep the original 4:3 logo compositions fully visible in the work cards. */
+.project-image--riot{background:#f7f7f7}.project-image--jumbo{background:#1450f5}
+.project-image--riot img,.project-image--jumbo img{object-fit:contain}
+/* Keep the decorative asterisks gently turning around their own centers. */
+.tiny-star,.ingredients-inner>b,.contact-star{display:inline-block;letter-spacing:0;animation:asterisk-turn 32s linear infinite}
+@keyframes asterisk-turn{from{rotate:0deg}to{rotate:360deg}}
+
+/* An ingredient at a time: the original 3D bottle responds to the contact form. */
+.contact-brew{min-width:0;align-self:center}
+.potion-progress{text-align:center;max-width:340px;margin:0 auto}
+.potion-stage{--potion-flight-space:70px;position:relative;display:block;width:100%;height:360px;isolation:isolate;appearance:none;padding:0;border:0;border-radius:12px;background:transparent;cursor:pointer}
+.potion-stage:after{content:'';position:absolute;bottom:22px;left:25%;width:50%;height:15px;border-radius:50%;background:#73602b30;filter:blur(9px);z-index:-1}
+.potion-stage canvas{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
+.potion-fallback{display:block;width:100%;height:100%;padding:calc(12px + var(--potion-flight-space)) 50px 26px;pointer-events:none}
+.potion-progress.is-ready .potion-fallback{visibility:hidden}
+.potion-caption{font-family:var(--display);font-size:15px;line-height:1.5;margin:0 0 13px;min-height:23px}
+@media(max-width:760px){
+  .contact-form-footer{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px) + var(--contact-keyboard-inset,0px));z-index:3;display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:0 12px;margin-top:12px;padding:4px 0 8px;background:var(--paper);border-top:1px solid var(--line)}
+  .contact-form-footer .contact-send{width:100%;min-width:0;padding-inline:16px;grid-column:1;grid-row:1}
+  .contact-potion-slot{display:block;grid-column:2;grid-row:1;min-width:0}
+  .contact-form-footer>p{grid-column:1/-1}
+  .contact-potion-slot .potion-progress{width:100%;margin:0}
+  .contact-potion-slot .potion-stage{--potion-flight-space:26px;height:120px}
+  .contact-potion-slot .potion-stage:after{bottom:7px;height:7px;filter:blur(4px)}
+  .contact-potion-slot .potion-fallback{padding:29px 17px 8px}
+  .contact-potion-slot .potion-caption{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .contact-fields input,.contact-fields textarea{scroll-margin-block:30px 180px}
+}

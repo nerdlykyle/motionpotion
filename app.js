@@ -17,6 +17,7 @@ reducedMotion.addEventListener('change', event => { paused = event.matches; upda
 
 const contactForm = document.querySelector('#contact-form');
 const contactStatus = document.querySelector('#contact-status');
+const contactWasSent = new URLSearchParams(window.location.search).get('contact') === 'sent';
 const returnUrl = new URL(window.location.href);
 returnUrl.hash = 'contact';
 returnUrl.searchParams.set('contact', 'sent');
@@ -25,7 +26,7 @@ returnField.type = 'hidden';
 returnField.name = '_next';
 returnField.setAttribute('value', returnUrl.href);
 contactForm.append(returnField);
-if (new URLSearchParams(window.location.search).get('contact') === 'sent') {
+if (contactWasSent) {
   contactStatus.textContent = 'Thanks for reaching out. Your note was submitted!';
   contactStatus.dataset.state = 'success';
   contactStatus.hidden = false;
@@ -36,6 +37,11 @@ if (new URLSearchParams(window.location.search).get('contact') === 'sent') {
 contactForm.addEventListener('submit', event => {
   if (contactForm.querySelector('[name="_honey"]').value) event.preventDefault();
 });
+
+// Decorative feedback never changes the form fields or submits a demo message.
+import('./contact-potion.js').then(({ mountContactPotion }) => {
+  mountContactPotion(document.querySelector('#contact-potion'), contactForm, { sent: contactWasSent });
+}).catch(error => console.warn('Keeping the static potion illustration.', error));
 
 // Load the silent five-second vignette only when its card enters view.
 const editingLoop = document.querySelector('#about-editing-loop');
@@ -80,7 +86,13 @@ const projects = {
   filth: { title: 'Bread & Butter — Introducing Filth', category: 'PRODUCT FILM', description: 'A product introduction for Bread & Butter Pickleball’s Filth paddle.', poster: './assets/filth.jpg', video: './assets/videos/filth.mp4' },
   go: { title: 'GO! Curriculum', category: 'ANIMATED EXPLAINER', description: 'An animated introduction to GO! Curriculum for youth programs.', poster: './assets/go-curriculum.jpg', video: './assets/videos/go.mp4' },
   urjanet: { title: 'Urjanet', category: 'BRAND STORY / EXPLAINER', description: 'A provider engagement explainer for Urjanet.', poster: './assets/urjanet.jpg', video: './assets/videos/urjanet.mp4' },
-  loco: { title: 'Bread & Butter — Loco', category: 'LOGO ANIMATION', description: 'A logo tease for Bread & Butter’s Loco paddle.', poster: './assets/loco.png', video: './assets/videos/loco.mp4' }
+  loco: { title: 'Bread & Butter — Loco', category: 'LOGO ANIMATION', description: 'A logo tease for Bread & Butter’s Loco paddle.', poster: './assets/loco.png', video: './assets/videos/loco.mp4' },
+  riot: { title: 'RIOT', category: 'LOGO ANIMATION', description: 'Riot Games logo animation.', poster: './assets/riot.jpg', video: './assets/videos/riot.mp4', loop: true },
+  crossing: { title: 'The Crossing', category: 'ANIMATED STORY', description: 'A local church’s animated history.', poster: './assets/crossing.jpg', video: './assets/videos/crossing.mp4' },
+  'royal-canin': { title: 'Royal Canin', category: 'EVENT PROMO', description: 'A promotional film for Royal Canin.', poster: './assets/royal-canin.jpg', video: './assets/videos/royal-canin.mp4' },
+  securibly: { title: 'Securibly', category: 'PROMO', description: 'Promotional animation for Securibly.', poster: './assets/securibly.jpg', video: './assets/videos/securibly.mp4' },
+  'barre-harmony': { title: 'Barre Harmony', category: 'SOCIAL AD', description: 'A social advertisement for Barre Harmony.', poster: './assets/barre-harmony.jpg', video: './assets/videos/barre-harmony.mp4' },
+  jumbo: { title: 'Jumbo Privacy', category: 'LOGO ANIMATION', description: 'Jumbo Privacy logo animation.', poster: './assets/jumbo.jpg', video: './assets/videos/jumbo.mp4', loop: true }
 };
 const dialog = document.querySelector('#project-dialog');
 const video = document.querySelector('#project-video');
@@ -93,6 +105,7 @@ document.querySelectorAll('[data-project]').forEach(button => button.addEventLis
   document.querySelector('#dialog-description').textContent = project.description;
   document.querySelector('.video-error').hidden = true;
   video.poster = project.poster;
+  video.loop = Boolean(project.loop);
   video.src = project.video;
   dialog.showModal();
   document.body.classList.add('modal-open');
