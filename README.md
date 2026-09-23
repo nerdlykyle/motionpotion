@@ -6,7 +6,7 @@ Kyle Parsons' portfolio with a painterly treatment of his original 3D sculpt, an
 
 Run `node server.mjs` and open `http://localhost:4173`. No package install is required. Set `PORT` to use a different local port. JavaScript modules need an HTTP server.
 
-Run `npm run check` to check JavaScript syntax and `npm run build` to prepare `dist/`. The existing `.github/workflows/pages.yml` workflow deploys that directory to GitHub Pages. All site asset paths are relative, so repository subpaths are supported. This update does not publish the site or change DNS.
+Run `npm run check` to check JavaScript syntax and `npm run build` to prepare `dist/`. The existing `.github/workflows/pages.yml` workflow deploys that directory to GitHub Pages. All site asset paths are relative, so repository subpaths are supported. The site is published at https://nerdlykyle.github.io/motionpotion/. The custom domain is not connected yet; DNS still points to Wix.
 
 ## Portrait
 
