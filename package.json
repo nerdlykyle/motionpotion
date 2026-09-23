@@ -1,0 +1,11 @@
+{
+  "name": "motion-potion-2026",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "build": "node build.mjs",
+    "check": "node --check app.js && node --check character.js && node --check painterly.js && node --check quiff.js && node --check server.mjs && node --check build.mjs"
+  }
+}

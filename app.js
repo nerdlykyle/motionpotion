@@ -1,0 +1,111 @@
+const stage = document.querySelector('#character-stage');
+const viewport = document.querySelector('#character-viewport');
+const waveButton = document.querySelector('#wave-button');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let paused = reducedMotion.matches;
+let character;
+function updateMotionPreference() {
+  character?.setPaused(paused);
+}
+// The contact link works even while the portrait loads or WebGL is unavailable.
+// Greet on hover/focus too, so the nod is visible before the page scrolls.
+for (const event of ['pointerenter', 'focus', 'click']) {
+  waveButton.addEventListener(event, () => character?.greet());
+}
+updateMotionPreference();
+reducedMotion.addEventListener('change', event => { paused = event.matches; updateMotionPreference(); });
+
+const contactForm = document.querySelector('#contact-form');
+const contactStatus = document.querySelector('#contact-status');
+const returnUrl = new URL(window.location.href);
+returnUrl.hash = 'contact';
+returnUrl.searchParams.set('contact', 'sent');
+const returnField = document.createElement('input');
+returnField.type = 'hidden';
+returnField.name = '_next';
+returnField.setAttribute('value', returnUrl.href);
+contactForm.append(returnField);
+if (new URLSearchParams(window.location.search).get('contact') === 'sent') {
+  contactStatus.textContent = 'Thanks for reaching out. Your note was submitted!';
+  contactStatus.dataset.state = 'success';
+  contactStatus.hidden = false;
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete('contact');
+  window.history.replaceState(null, '', cleanUrl);
+}
+contactForm.addEventListener('submit', event => {
+  if (contactForm.querySelector('[name="_honey"]').value) event.preventDefault();
+});
+
+// Load the silent five-second vignette only when its card enters view.
+const editingLoop = document.querySelector('#about-editing-loop');
+let editingInView = false;
+function updateEditingLoop() {
+  if (!editingLoop) return;
+  if (reducedMotion.matches || document.hidden || !editingInView) {
+    editingLoop.pause();
+    if (reducedMotion.matches) editingLoop.classList.remove('is-playing');
+    return;
+  }
+  if (!editingLoop.getAttribute('src')) editingLoop.src = editingLoop.dataset.src;
+  editingLoop.play().catch(() => { /* Keep the poster if autoplay is unavailable. */ });
+}
+if (editingLoop) {
+  editingLoop.addEventListener('playing', () => editingLoop.classList.add('is-playing'));
+  editingLoop.addEventListener('error', () => editingLoop.classList.remove('is-playing'));
+  new IntersectionObserver(([entry]) => {
+    editingInView = entry.isIntersecting;
+    updateEditingLoop();
+  }, { threshold: 0.1 }).observe(editingLoop);
+  reducedMotion.addEventListener('change', updateEditingLoop);
+  document.addEventListener('visibilitychange', updateEditingLoop);
+}
+
+stage.dataset.renderState = 'loading';
+viewport.setAttribute('aria-busy', 'true');
+import('./character.js').then(async ({ createCharacter }) => {
+  character = await createCharacter(viewport, { paused });
+  character.setPaused(paused);
+  viewport.classList.add('is-ready');
+  stage.dataset.renderState = 'ready';
+  viewport.setAttribute('aria-busy', 'false');
+}).catch(error => {
+  console.warn('The 3D portrait is unavailable; showing the cleaned sculpt portrait.', error);
+  stage.dataset.renderState = 'fallback';
+  viewport.setAttribute('aria-busy', 'false');
+  viewport.querySelector('canvas')?.remove();
+});
+
+const projects = {
+  filth: { title: 'Bread & Butter — Introducing Filth', category: 'PRODUCT FILM', description: 'A product introduction for Bread & Butter Pickleball’s Filth paddle.', poster: './assets/filth.jpg', video: 'https://video.wixstatic.com/video/5bee93_d8acac61736c4a9d892125047437e915/720p/mp4/file.mp4' },
+  go: { title: 'GO! Curriculum', category: 'ANIMATED EXPLAINER', description: 'An animated introduction to GO! Curriculum for youth programs.', poster: './assets/go-curriculum.jpg', video: 'https://video.wixstatic.com/video/5bee93_ac0e63380980470b85c641d76d01a213/720p/mp4/file.mp4' },
+  urjanet: { title: 'Urjanet', category: 'BRAND STORY / EXPLAINER', description: 'A provider engagement explainer for Urjanet.', poster: './assets/urjanet.jpg', video: 'https://video.wixstatic.com/video/5bee93_8340553048b841dbb66440d07635afe2/720p/mp4/file.mp4' },
+  loco: { title: 'Bread & Butter — Loco', category: 'LOGO ANIMATION', description: 'A logo tease for Bread & Butter’s Loco paddle.', poster: './assets/loco.png', video: 'https://video.wixstatic.com/video/5bee93_73a622f6a737493f878909c326f1a70c/720p/mp4/file.mp4' }
+};
+const dialog = document.querySelector('#project-dialog');
+const video = document.querySelector('#project-video');
+let lastProject;
+document.querySelectorAll('[data-project]').forEach(button => button.addEventListener('click', () => {
+  const project = projects[button.dataset.project];
+  lastProject = button;
+  document.querySelector('#dialog-title').textContent = project.title;
+  document.querySelector('#dialog-category').textContent = project.category;
+  document.querySelector('#dialog-description').textContent = project.description;
+  document.querySelector('.video-error').hidden = true;
+  video.poster = project.poster;
+  video.src = project.video;
+  dialog.showModal();
+  document.body.classList.add('modal-open');
+  video.play().catch(() => { /* Native controls remain available if autoplay is blocked. */ });
+}));
+video.addEventListener('error', () => { document.querySelector('.video-error').hidden = false; });
+document.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', event => {
+  const rect = dialog.getBoundingClientRect();
+  if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+});
+dialog.addEventListener('close', () => {
+  video.pause(); video.removeAttribute('src'); video.load();
+  document.body.classList.remove('modal-open');
+  lastProject?.focus({ preventScroll: true });
+});

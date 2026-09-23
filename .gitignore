@@ -1,0 +1,11 @@
+dist/
+node_modules/
+*.log
+qa/
+
+# Local Blender sources and alternate exports stay outside the public site repo.
+assets/3d model/
+assets/models/kyle-cleaned-web.glb
+assets/models/kyle-painterly-web.glb
+reference/
+
