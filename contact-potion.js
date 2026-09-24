@@ -101,7 +101,7 @@ function makeLiquid() {
 
 async function createBottle(stage) {
   const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, powerPreference:'low-power'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.6));
   renderer.setClearColor(0, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -203,7 +203,7 @@ async function createBottle(stage) {
     });
     renderer.render(scene, camera);
   }
-  return {draw, canvas:renderer.domElement};
+  return {draw, resize, canvas:renderer.domElement};
 }
 
 export function mountContactPotion(container, form, {sent = false} = {}) {
@@ -237,10 +237,10 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
   placeBottle();
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   const captions = ['A little idea. A little alchemy.', 'First ingredient, in.', 'Something good is brewing.', 'Your potion is ready to send.'];
-  let bottle, loading = false, inView = false, raf = 0, last = 0;
+  let bottle, loading = false, inView = false, raf = 0, last = 0, contextLost = false;
   let target = 0, amount = 0, velocity = 0, impulse = 0, changedAt = 0, celebrationAt = -Infinity;
   let demoTimers = [], demoActive = false;
-  function wake() { if (!raf && inView && !document.hidden) raf = requestAnimationFrame(frame); }
+  function wake() { if (!raf && !contextLost && inView && !document.hidden) raf = requestAnimationFrame(frame); }
   function setIngredients(complete, success = false, demo = false) {
     const count = complete.filter(Boolean).length;
     const next = count / 3;
@@ -274,6 +274,7 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
   }
   function frame(now) {
     raf = 0;
+    if (contextLost || !inView || document.hidden) return;
     const dt = Math.min((now - (last || now)) / 1000, .04); last = now;
     const time = now / 1000, elapsed = time - changedAt;
     if (preference.matches) { amount = target; velocity = 0; }
@@ -284,6 +285,7 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
     const kick = preference.matches ? 0 : impulse * Math.exp(-elapsed * 2.0) * Math.sin(elapsed * 9);
     const wave = preference.matches ? 0 : clamp(kick * .23 + Math.sin(time * 2.3) * .038, -.2, .2) * Math.min(amount * 5, 1);
     bottle?.draw({amount, wave, time, kick, celebration:time-celebrationAt, reduced:preference.matches});
+    if (bottle && !contextLost) container.classList.add('is-ready');
     // Reduced motion renders on input/resize only. Offscreen/hidden scenes stop.
     if (bottle && !preference.matches) wake();
   }
@@ -292,11 +294,18 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
     loading = true;
     try {
       bottle = await createBottle(stage);
-      container.classList.add('is-ready');
+      contextLost = bottle.canvas.getContext('webgl2').isContextLost();
       if (sent) { target = amount = 1; velocity = 0; celebrationAt = performance.now()/1000; }
-      bottle.canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); container.classList.remove('is-ready'); cancelAnimationFrame(raf); raf = 0; bottle = null; });
+      bottle.canvas.addEventListener('webglcontextlost', event => {
+        event.preventDefault(); contextLost = true;
+        container.classList.remove('is-ready'); cancelAnimationFrame(raf); raf = 0;
+      });
+      bottle.canvas.addEventListener('webglcontextrestored', () => {
+        contextLost = false; last = 0; bottle.resize(); wake();
+      });
       wake();
     } catch (error) { console.warn('Interactive potion uses the SVG fallback.', error); }
+    finally { loading = false; }
   }
   const observer = new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
@@ -312,7 +321,7 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
   }
   form.addEventListener('reset', () => { sent = false; setTimeout(stopDemo, 0); });
   demoButton.addEventListener('click', demo);
-  window.addEventListener('pageshow', sync);
+  window.addEventListener('pageshow', () => { bottle?.resize(); sync(); wake(); });
   sync();
   if (sent) setIngredients([true,true,true], true);
 }

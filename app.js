@@ -72,8 +72,7 @@ viewport.setAttribute('aria-busy', 'true');
 import('./character.js').then(async ({ createCharacter }) => {
   character = await createCharacter(viewport, { paused });
   character.setPaused(paused);
-  viewport.classList.add('is-ready');
-  stage.dataset.renderState = 'ready';
+  // The renderer marks readiness only after it has drawn a frame.
   viewport.setAttribute('aria-busy', 'false');
 }).catch(error => {
   console.warn('The 3D portrait is unavailable; showing the cleaned sculpt portrait.', error);

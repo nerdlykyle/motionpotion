@@ -37,3 +37,12 @@ Checked in the Codex Chromium browser:
 - JavaScript syntax checks and static build completed. Public build contains the 7.1 MB web GLB and excludes the source-model directory.
 
 Reduced-motion and real touch-device behavior are implemented but were not independently exercised through OS/device settings. This remains a local preview; no production deployment or DNS changes were made.
+
+## Mobile model recovery and scroll gaze — September 24, 2026
+
+- Reproduced the contact bottle staying in fallback permanently after a WebGL context loss/restoration. The portrait also lacked recovery handling.
+- Both canvases now show their fallback during context loss and return to 3D after restoration; the portrait rebuilds its generated reflection texture. Readiness follows the first rendered frame.
+- Touch screens use lower drawing-buffer resolution, 30 fps portrait animation, and half-float position targets. Devices without float color attachments use a direct-lit interactive portrait instead of an unsupported painterly framebuffer.
+- Mobile scroll direction controls head and eye pitch, with a smoothed tilt bounded to 0.2 radians. Reduced-motion mode disables this response; desktop pointer tracking remains.
+- Playwright/Edge checks passed at 390px and 320px, desktop 1365px, reduced motion, simulated missing float extensions, and disabled WebGL. Forced context loss/restoration passed for both models, including reduced motion. Form fill reached all three ingredients without submitting a message; the bottle moved correctly across the mobile breakpoint. No unexpected browser errors or horizontal overflow.
+- Scroll test measured head pitch +0.200 scrolling down and -0.194 scrolling back up. Syntax checks and production build passed. Actual phone hardware/browser retest remains pending.

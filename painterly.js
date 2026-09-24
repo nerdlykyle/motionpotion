@@ -4,8 +4,17 @@ import * as THREE from 'three';
 // character including the eyes, anchor strokes to object position, soften edges.
 // The Blender file retains the actual official compositor asset separately.
 export function createPainterlyPass(renderer, scene, camera) {
+  // Float attachments are optional even with WebGL 2. Keep the live model
+  // visible on GPUs without them instead of sampling an incomplete framebuffer.
+  const fullFloat = renderer.extensions.has('EXT_color_buffer_float');
+  const halfFloat = fullFloat || renderer.extensions.has('EXT_color_buffer_half_float');
+  if (!halfFloat) return {
+    mode: 'direct', resize() {}, dispose() {},
+    render() { renderer.setRenderTarget(null); renderer.render(scene, camera); }
+  };
+  const mobile = matchMedia('(pointer: coarse)').matches;
   const color = new THREE.WebGLRenderTarget(1, 1, {type:THREE.HalfFloatType, depthBuffer:true});
-  const position = new THREE.WebGLRenderTarget(1, 1, {type:THREE.FloatType, depthBuffer:true,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter});
+  const position = new THREE.WebGLRenderTarget(1, 1, {type:fullFloat && !mobile ? THREE.FloatType : THREE.HalfFloatType, depthBuffer:true,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter});
   const positionMaterial = new THREE.ShaderMaterial({
     vertexShader:`
       #include <common>
@@ -128,6 +137,7 @@ export function createPainterlyPass(renderer, scene, camera) {
   const quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),material);postScene.add(quad);
   const postCamera=new THREE.Camera();
   return {
+    mode: mobile ? 'painterly-mobile' : 'painterly',
     resize(width,height){
       // CSS-pixel scale keeps the strokes visible on high-DPI displays too.
       color.setSize(Math.max(1,Math.round(width)),Math.max(1,Math.round(height)));

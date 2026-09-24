@@ -6,8 +6,9 @@ import { quiffWeight, createQuiffMotion } from './quiff.js';
 // The website uses a lighter copy of Kyle's original sculpt. This small preview
 // skeleton is created in memory; it does not change the editable source model.
 export async function createCharacter(container, { paused = false } = {}) {
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  const touch = matchMedia('(pointer: coarse)');
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !touch.matches, powerPreference: 'low-power' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, touch.matches ? 1.25 : 1.75));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -43,11 +44,18 @@ export async function createCharacter(container, { paused = false } = {}) {
   }
   softbox([-1.5, 2, 4], 1.2, 1.6, 0xffffff);
   softbox([3, 1, 2], 1, 3, 0xc9cbd4);
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const environment = pmrem.fromScene(studio, .035, .1, 10);
-  scene.environment = environment.texture;
-  pmrem.dispose();
-  studio.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+  let environment;
+  function refreshEnvironment() {
+    environment?.dispose();
+    if (!renderer.extensions.has('EXT_color_buffer_float') && !renderer.extensions.has('EXT_color_buffer_half_float')) {
+      scene.environment = null; return;
+    }
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    environment = pmrem.fromScene(studio, .035, .1, 10);
+    scene.environment = environment.texture;
+    pmrem.dispose();
+  }
+  refreshEnvironment();
 
   const portrait = new THREE.Group(); scene.add(portrait);
   const bodyBone = new THREE.Bone(); bodyBone.name = 'PreviewBody';
@@ -134,16 +142,27 @@ export async function createCharacter(container, { paused = false } = {}) {
   });
   if (!skinnedBody) throw new Error('The original body could not be found.');
   const painterly = createPainterlyPass(renderer, scene, camera);
-  container.dataset.painterly = 'position-tracked-render-filter';
+  container.dataset.painterly = painterly.mode;
   const quiffMotion = createQuiffMotion();
   let quiffPeak = 0;
 
   const pointer = new THREE.Vector2();
   let visible = true, alive = true, frameId, lastFrame = 0, time = 0, greeting = -10;
-  let lastPoseWrite = 0;
+  let lastPoseWrite = 0, contextLost = renderer.getContext().isContextLost();
+  let lastScrollY = window.scrollY, scrollGaze = 0;
+  function followScroll() {
+    const y = Math.max(0, Math.min(window.scrollY, document.documentElement.scrollHeight - innerHeight));
+    const distance = y - lastScrollY;
+    lastScrollY = y;
+    if (!touch.matches || paused || !visible || Math.abs(distance) < .5) return;
+    // Accumulate small finger movements too; reversing a scroll reverses gaze.
+    scrollGaze = THREE.MathUtils.clamp(scrollGaze + distance / 110, -1, 1);
+    pointer.set(0, scrollGaze);
+  }
+  window.addEventListener('scroll', followScroll, { passive: true });
   function setPointer(event) {
     if (paused) return;
-    if (event.pointerType === 'touch' && !container.contains(event.target)) return;
+    if (touch.matches || event.pointerType === 'touch') return;
     const rect = container.getBoundingClientRect();
     pointer.set(
       THREE.MathUtils.clamp((event.clientX - rect.left - rect.width * .5) / (rect.width * .85), -1, 1),
@@ -155,7 +174,24 @@ export async function createCharacter(container, { paused = false } = {}) {
   window.addEventListener('pointerdown', setPointer, { passive: true });
   document.documentElement.addEventListener('pointerleave', resetPointer);
   window.addEventListener('blur', resetPointer);
-  function render() { painterly.render(); }
+  function render() {
+    if (contextLost || renderer.getContext().isContextLost()) return;
+    painterly.render();
+    container.classList.add('is-ready');
+    container.parentElement.dataset.renderState = 'ready';
+  }
+  function onContextLost(event) {
+    event.preventDefault(); contextLost = true; stop();
+    container.classList.remove('is-ready');
+    container.parentElement.dataset.renderState = 'recovering';
+  }
+  function onContextRestored() {
+    contextLost = false;
+    // The generated reflection texture must be repainted after GPU data loss.
+    refreshEnvironment(); resize(); start();
+  }
+  renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+  renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
   function resize() {
     const { width, height } = container.getBoundingClientRect();
     if (!width || !height) return;
@@ -170,13 +206,14 @@ export async function createCharacter(container, { paused = false } = {}) {
     frameId = undefined; quiffMotion.reset(); quiffBone.rotation.set(0, 0, 0);
   }
   function start() {
-    if (alive && !paused && visible && !document.hidden && frameId === undefined) {
+    if (alive && !contextLost && !paused && visible && !document.hidden && frameId === undefined) {
       lastFrame = performance.now(); frameId = requestAnimationFrame(draw);
     }
   }
   function draw(now) {
     frameId = undefined;
-    if (!alive || paused || !visible || document.hidden) return;
+    if (!alive || contextLost || paused || !visible || document.hidden) return;
+    if (touch.matches && now - lastFrame < 1000 / 30) { frameId = requestAnimationFrame(draw); return; }
     const delta = Math.min((now - lastFrame) / 1000, .05); lastFrame = now; time += delta;
     const ease = 1 - Math.exp(-delta * 7);
     const hello = time - greeting;
@@ -184,7 +221,7 @@ export async function createCharacter(container, { paused = false } = {}) {
     const previousPitch = headBone.rotation.x, previousYaw = headBone.rotation.y;
     headBone.rotation.order = 'YXZ';
     headBone.rotation.y = THREE.MathUtils.lerp(headBone.rotation.y, pointer.x * .22, ease);
-    headBone.rotation.x = THREE.MathUtils.lerp(headBone.rotation.x, pointer.y * .14 + nod, ease);
+    headBone.rotation.x = THREE.MathUtils.lerp(headBone.rotation.x, pointer.y * (touch.matches ? .20 : .14) + nod, ease);
     headBone.rotation.z = THREE.MathUtils.lerp(headBone.rotation.z, -pointer.x * .022 + Math.sin(time * .65) * .006, ease);
     const hair = quiffMotion.update(
       (headBone.rotation.x - previousPitch) / Math.max(delta, .001),
@@ -208,10 +245,11 @@ export async function createCharacter(container, { paused = false } = {}) {
   }
   const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(container);
   const visibilityObserver = new IntersectionObserver(entries => {
-    visible = entries[0].isIntersecting; if (visible) start(); else stop();
+    visible = entries[0].isIntersecting; if (visible) { lastScrollY = window.scrollY; render(); start(); } else stop();
   }, { threshold: .05 });
   visibilityObserver.observe(container);
-  const onVisibility = () => { if (document.hidden) stop(); else start(); };
+  const onVisibility = () => { if (document.hidden) stop(); else { resize(); start(); } };
+  window.addEventListener('pageshow', onVisibility);
   document.addEventListener('visibilitychange', onVisibility);
   resize(); start();
   return {
@@ -222,6 +260,10 @@ export async function createCharacter(container, { paused = false } = {}) {
     },
     dispose() {
       alive = false; stop(); resizeObserver.disconnect(); visibilityObserver.disconnect();
+      window.removeEventListener('scroll', followScroll);
+      window.removeEventListener('pageshow', onVisibility);
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+      renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       window.removeEventListener('pointermove', setPointer); window.removeEventListener('pointerdown', setPointer);
       document.documentElement.removeEventListener('pointerleave', resetPointer); window.removeEventListener('blur', resetPointer);
       document.removeEventListener('visibilitychange', onVisibility);
@@ -232,7 +274,8 @@ export async function createCharacter(container, { paused = false } = {}) {
       });
       for (const m of materials) { for (const value of Object.values(m)) if (value?.isTexture) textures.add(value); m.dispose(); }
       for (const texture of textures) { texture.source?.data?.close?.(); texture.dispose(); }
-      painterly.dispose(); skinnedBody.skeleton.dispose(); environment.dispose(); renderer.dispose(); renderer.domElement.remove();
+      studio.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+      painterly.dispose(); skinnedBody.skeleton.dispose(); environment?.dispose(); renderer.dispose(); renderer.domElement.remove();
     }
   };
 }
