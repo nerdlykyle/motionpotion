@@ -23,7 +23,7 @@ dialog{border:0;background:var(--paper);color:var(--ink);border-radius:12px;widt
 .portrait-shape{fill:#cbc2e8;stroke:#a89ec4;stroke-width:2}
 .portrait-shape-shadow{fill:#b3a7d0;transform:translate(4px,14px)}
 .character-viewport{inset:0 0 92px;clip-path:url(#portrait-mask)}
-.character-fallback{inset:0;width:100%;height:100%;object-fit:contain;filter:none}
+.character-fallback{inset:0 auto auto 50%;width:auto;height:100%;max-width:none;transform:translateX(-50%);object-fit:contain;filter:none}
 .character-label{top:calc(73.5% - 67.62px);bottom:auto;transform:translate(-50%,-50%) rotate(-3deg);font-size:8px;z-index:3;background:#faf8ef;box-shadow:3px 4px 0 #9d92b1}
 .character-controls{top:calc(73.5% - 27px);bottom:auto;gap:13px}
 .pointer-hint{bottom:3px}
