@@ -56,28 +56,82 @@ import('./contact-potion.js?v=form-flow-3').then(({ mountContactPotion }) => {
   mountContactPotion(document.querySelector('#contact-potion'), contactForm, { sent: contactWasSent });
 }).catch(error => console.warn('Keeping the static potion illustration.', error));
 
-// Load the silent five-second vignette only when its card enters view.
+// Load the silent vignette near its card. A blocked autoplay attempt must
+// leave an explicit, user-activated way to play on mobile.
 const editingLoop = document.querySelector('#about-editing-loop');
-let editingInView = false;
+const editingControl = document.querySelector('#editing-playback');
+let editingInView = false, editingOptIn = false, editingPaused = false, editingPending = false;
+function editingShouldPlay() {
+  return editingInView && !document.hidden && !editingPaused && (!reducedMotion.matches || editingOptIn);
+}
+function showEditingControl(label = 'Play animation') {
+  editingControl.textContent = label;
+  editingControl.hidden = false;
+}
 function updateEditingLoop() {
   if (!editingLoop) return;
-  if (reducedMotion.matches || document.hidden || !editingInView) {
+  if (!editingShouldPlay()) {
     editingLoop.pause();
-    if (reducedMotion.matches) editingLoop.classList.remove('is-playing');
+    if (reducedMotion.matches && !editingOptIn) {
+      editingLoop.classList.remove('is-playing');
+      showEditingControl();
+    }
     return;
   }
+  if (editingPending || !editingLoop.paused && editingLoop.readyState >= 3) return;
+  // Set the properties as well as the HTML attributes before assigning src.
+  editingLoop.muted = true;
+  editingLoop.defaultMuted = true;
+  editingLoop.playsInline = true;
+  editingLoop.preload = 'auto';
   if (!editingLoop.getAttribute('src')) editingLoop.src = editingLoop.dataset.src;
-  editingLoop.play().catch(() => { /* Keep the poster if autoplay is unavailable. */ });
+  editingPending = true;
+  editingLoop.play().catch(error => {
+    if (editingShouldPlay()) {
+      editingLoop.dataset.playback = error.name === 'NotAllowedError' ? 'blocked' : 'retry';
+      showEditingControl(editingLoop.error ? 'Retry animation' : 'Play animation');
+    }
+  }).finally(() => { editingPending = false; });
 }
 if (editingLoop) {
-  editingLoop.addEventListener('playing', () => editingLoop.classList.add('is-playing'));
-  editingLoop.addEventListener('error', () => editingLoop.classList.remove('is-playing'));
+  editingLoop.addEventListener('playing', () => {
+    if (!editingShouldPlay()) { editingLoop.pause(); return; }
+    editingLoop.classList.add('is-playing');
+    editingLoop.dataset.playback = 'playing';
+    if (editingOptIn) showEditingControl('Pause animation');
+    else editingControl.hidden = true;
+  });
+  editingLoop.addEventListener('pause', () => {
+    if (editingInView && !document.hidden && !editingPending) showEditingControl();
+  });
+  editingLoop.addEventListener('error', () => {
+    editingLoop.classList.remove('is-playing');
+    editingLoop.dataset.playback = 'error';
+    showEditingControl('Retry animation');
+  });
+  editingControl.addEventListener('click', () => {
+    if (!editingLoop.paused && editingLoop.classList.contains('is-playing')) {
+      editingPaused = true;
+      editingLoop.pause();
+      showEditingControl();
+    } else {
+      editingOptIn = true;
+      editingPaused = false;
+      if (editingLoop.error) editingLoop.load();
+      // Call play synchronously from the tap to retain browser user activation.
+      updateEditingLoop();
+    }
+  });
   new IntersectionObserver(([entry]) => {
     editingInView = entry.isIntersecting;
     updateEditingLoop();
-  }, { threshold: 0.1 }).observe(editingLoop);
-  reducedMotion.addEventListener('change', updateEditingLoop);
+  }, { threshold: 0.1 }).observe(editingLoop.parentElement);
+  reducedMotion.addEventListener('change', () => {
+    editingOptIn = false; editingPaused = false; updateEditingLoop();
+  });
   document.addEventListener('visibilitychange', updateEditingLoop);
+  window.addEventListener('pageshow', updateEditingLoop);
+  updateEditingLoop();
 }
 
 stage.dataset.renderState = 'loading';
