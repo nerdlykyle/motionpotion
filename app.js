@@ -38,8 +38,21 @@ contactForm.addEventListener('submit', event => {
   if (contactForm.querySelector('[name="_honey"]').value) event.preventDefault();
 });
 
+// Position the illustration before importing the 3D code so the fallback also
+// sits beside Submit on a slow connection or when WebGL cannot load.
+const contactPotion = document.querySelector('#contact-potion');
+const potionDesktopHome = document.querySelector('.contact-brew');
+const potionMobileHome = contactForm.querySelector('.contact-potion-slot');
+const potionMobile = matchMedia('(max-width: 760px)');
+function placeContactPotion() {
+  (potionMobile.matches ? potionMobileHome : potionDesktopHome).append(contactPotion);
+  potionDesktopHome.hidden = potionMobile.matches;
+}
+potionMobile.addEventListener('change', placeContactPotion);
+placeContactPotion();
+
 // Decorative feedback never changes the form fields or submits a demo message.
-import('./contact-potion.js').then(({ mountContactPotion }) => {
+import('./contact-potion.js?v=mobile-bottle-2').then(({ mountContactPotion }) => {
   mountContactPotion(document.querySelector('#contact-potion'), contactForm, { sent: contactWasSent });
 }).catch(error => console.warn('Keeping the static potion illustration.', error));
 

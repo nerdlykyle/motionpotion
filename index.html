@@ -8,9 +8,9 @@
   <title>Motion Potion — Kyle Parsons, Motion & Design</title>
   <link rel="icon" href="./assets/potion-still.svg" type="image/svg+xml">
   <link rel="preload" href="./assets/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=mobile-bottle-2">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=mobile-bottle-2"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -133,14 +133,15 @@
           </form>
           <div class="contact-brew">
             <div class="potion-progress" id="contact-potion" data-fill="0">
-              <button class="potion-stage" type="button" aria-label="Preview the potion animation" aria-describedby="potion-caption">
+              <div class="potion-stage">
                 <svg class="potion-fallback" viewBox="0 0 48 58" focusable="false" aria-hidden="true">
                   <defs><clipPath id="form-potion-inside"><path d="M18,14.44v3.99c0,.92-.5,1.77-1.32,2.19-11.94,6.28-10.54,22.83-2.03,28.59.78.53,1.72.79,2.67.79h13.36c.95,0,1.88-.26,2.67-.79,8.5-5.75,9.91-22.31-2.03-28.58-.81-.43-1.32-1.28-1.32-2.19v-3.99h-12Z"/></clipPath></defs>
                   <path fill="#f7f5ec" fill-opacity=".45" stroke="#282823" stroke-width="2.5" stroke-linejoin="round" d="M18,14.44v3.99c0,.92-.5,1.77-1.32,2.19-11.94,6.28-10.54,22.83-2.03,28.59.78.53,1.72.79,2.67.79h13.36c.95,0,1.88-.26,2.67-.79,8.5-5.75,9.91-22.31-2.03-28.58-.81-.43-1.32-1.28-1.32-2.19v-3.99h-12Z"/>
                   <g clip-path="url(#form-potion-inside)"><path class="potion-fallback-liquid" fill="#282823" stroke="#f2c83f" stroke-width="1" d="M7 52 Q16 50 24 52 T41 52 V54 H7Z"/></g>
                   <path class="potion-fallback-cork" fill="#f2c83f" stroke="#282823" stroke-width="2.5" d="M18.5,8.44h11c.83,0,1.5.67,1.5,1.5v4.5h-14v-4.5c0-.83.67-1.5,1.5-1.5Z"/>
                 </svg>
-              </button>
+                <button class="potion-trigger" type="button" aria-label="Preview the potion animation" aria-describedby="potion-caption"></button>
+              </div>
               <p class="potion-caption" id="potion-caption" role="status" aria-live="polite">A little idea. A little alchemy.</p>
             </div>
           </div>

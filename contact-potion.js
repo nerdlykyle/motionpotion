@@ -100,7 +100,7 @@ function makeLiquid() {
 }
 
 async function createBottle(stage) {
-  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, powerPreference:'low-power'});
+  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, preserveDrawingBuffer:true, powerPreference:'low-power'});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.6));
   renderer.setClearColor(0, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -163,12 +163,14 @@ async function createBottle(stage) {
     group.add(mesh); pops.push(mesh);
   }
   stage.append(renderer.domElement);
+  let needsFrameCheck = true, frameVisible = false;
   function resize() {
     const {width, height} = stage.getBoundingClientRect();
     if (!width || !height) return;
-    const flightSpace = parseFloat(getComputedStyle(stage).getPropertyValue('--potion-flight-space'));
+    const flightSpace = parseFloat(getComputedStyle(stage).getPropertyValue('--potion-flight-space')) || 0;
     Object.assign(camera, potionFrustum(width, height, flightSpace));
     camera.updateProjectionMatrix(); renderer.setSize(width, height, false);
+    needsFrameCheck = true;
   }
   const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(stage); resize();
   function draw({amount, wave, time, kick, celebration, reduced}) {
@@ -202,6 +204,17 @@ async function createBottle(stage) {
       bubble.scale.set(size * (1 + t * .3), size * (1 - Math.min(.4, t*.2)), size);
     });
     renderer.render(scene, camera);
+    // A successful render() call does not prove a mobile GPU drew the model.
+    // Verify once after setup/resize/restoration, never on every animation frame.
+    if (needsFrameCheck) {
+      const gl = renderer.getContext();
+      if (gl.isContextLost()) return false;
+      const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+      gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      frameVisible = pixels.some((value, i) => i % 4 === 3 && value > 32);
+      needsFrameCheck = false;
+    }
+    return frameVisible;
   }
   return {draw, resize, canvas:renderer.domElement};
 }
@@ -210,37 +223,29 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
   if (!container) return;
   const stage = container.querySelector('.potion-stage');
   const caption = container.querySelector('.potion-caption');
-  const demoButton = stage;
+  const demoButton = container.querySelector('.potion-trigger');
   const fallbackLiquid = container.querySelector('.potion-fallback-liquid');
   const fields = ['name','email','message'].map(name => form.elements.namedItem(name));
-  // Move this same canvas next to Submit on phones; never create a second
-  // renderer or lose the current fill level when crossing the breakpoint.
-  const desktopHome = container.parentElement;
-  const mobileHome = form.querySelector('.contact-potion-slot');
   const mobile = matchMedia('(max-width: 760px)');
-  function placeBottle() {
-    (mobile.matches ? mobileHome : desktopHome).append(container);
-    desktopHome.hidden = mobile.matches;
-    updateKeyboardInset();
-  }
   function updateKeyboardInset() {
     const viewport = window.visualViewport;
     const editing = form.contains(document.activeElement) && document.activeElement.matches('input, textarea');
     const inset = mobile.matches && editing && viewport ? Math.max(0, innerHeight - viewport.height - viewport.offsetTop) : 0;
     form.style.setProperty('--contact-keyboard-inset', `${inset}px`);
   }
-  mobile.addEventListener('change', placeBottle);
+  mobile.addEventListener('change', updateKeyboardInset);
   window.visualViewport?.addEventListener('resize', updateKeyboardInset);
   window.visualViewport?.addEventListener('scroll', updateKeyboardInset);
   form.addEventListener('focusin', updateKeyboardInset);
   form.addEventListener('focusout', () => requestAnimationFrame(updateKeyboardInset));
-  placeBottle();
+  updateKeyboardInset();
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   const captions = ['A little idea. A little alchemy.', 'First ingredient, in.', 'Something good is brewing.', 'Your potion is ready to send.'];
-  let bottle, loading = false, inView = false, raf = 0, last = 0, contextLost = false;
+  let bottle, loading = false, inView = false, raf = 0, last = 0, contextLost = false, emptyFrame = false;
+  container.dataset.renderState = 'loading';
   let target = 0, amount = 0, velocity = 0, impulse = 0, changedAt = 0, celebrationAt = -Infinity;
   let demoTimers = [], demoActive = false;
-  function wake() { if (!raf && !contextLost && inView && !document.hidden) raf = requestAnimationFrame(frame); }
+  function wake() { if (!raf && !contextLost && !emptyFrame && inView && !document.hidden) raf = requestAnimationFrame(frame); }
   function setIngredients(complete, success = false, demo = false) {
     const count = complete.filter(Boolean).length;
     const next = count / 3;
@@ -284,8 +289,12 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
     }
     const kick = preference.matches ? 0 : impulse * Math.exp(-elapsed * 2.0) * Math.sin(elapsed * 9);
     const wave = preference.matches ? 0 : clamp(kick * .23 + Math.sin(time * 2.3) * .038, -.2, .2) * Math.min(amount * 5, 1);
-    bottle?.draw({amount, wave, time, kick, celebration:time-celebrationAt, reduced:preference.matches});
-    if (bottle && !contextLost) container.classList.add('is-ready');
+    if (bottle) {
+      const drawn = bottle.draw({amount, wave, time, kick, celebration:time-celebrationAt, reduced:preference.matches});
+      emptyFrame = !drawn;
+      container.classList.toggle('is-ready', drawn && !contextLost);
+      container.dataset.renderState = drawn ? 'ready' : 'fallback';
+    }
     // Reduced motion renders on input/resize only. Offscreen/hidden scenes stop.
     if (bottle && !preference.matches) wake();
   }
@@ -298,30 +307,30 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
       if (sent) { target = amount = 1; velocity = 0; celebrationAt = performance.now()/1000; }
       bottle.canvas.addEventListener('webglcontextlost', event => {
         event.preventDefault(); contextLost = true;
-        container.classList.remove('is-ready'); cancelAnimationFrame(raf); raf = 0;
+        container.classList.remove('is-ready'); container.dataset.renderState = 'recovering'; cancelAnimationFrame(raf); raf = 0;
       });
       bottle.canvas.addEventListener('webglcontextrestored', () => {
-        contextLost = false; last = 0; bottle.resize(); wake();
+        contextLost = false; emptyFrame = false; last = 0; bottle.resize(); wake();
       });
       wake();
-    } catch (error) { console.warn('Interactive potion uses the SVG fallback.', error); }
+    } catch (error) { container.dataset.renderState = 'fallback'; console.warn('Interactive potion uses the SVG fallback.', error); }
     finally { loading = false; }
   }
   const observer = new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
-    if (inView) { last = 0; load(); wake(); }
+    if (inView) { last = 0; emptyFrame = false; bottle?.resize(); load(); wake(); }
     else { cancelAnimationFrame(raf); raf = 0; }
   }, {threshold:.01});
   observer.observe(container);
-  new ResizeObserver(wake).observe(stage);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) {cancelAnimationFrame(raf); raf=0;} else {last=0; wake();} });
+  new ResizeObserver(() => { emptyFrame = false; wake(); }).observe(stage);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) {cancelAnimationFrame(raf); raf=0;} else {last=0; emptyFrame=false; bottle?.resize(); wake();} });
   preference.addEventListener('change', wake);
   for (const field of fields) {
     for (const event of ['input','change']) field.addEventListener(event, () => { sent = false; if (demoActive) stopDemo(); else sync(); });
   }
   form.addEventListener('reset', () => { sent = false; setTimeout(stopDemo, 0); });
   demoButton.addEventListener('click', demo);
-  window.addEventListener('pageshow', () => { bottle?.resize(); sync(); wake(); });
+  window.addEventListener('pageshow', () => { emptyFrame = false; bottle?.resize(); sync(); wake(); });
   sync();
   if (sent) setIngredients([true,true,true], true);
 }
