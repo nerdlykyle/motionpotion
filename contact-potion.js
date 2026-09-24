@@ -226,19 +226,6 @@ export function mountContactPotion(container, form, {sent = false} = {}) {
   const demoButton = container.querySelector('.potion-trigger');
   const fallbackLiquid = container.querySelector('.potion-fallback-liquid');
   const fields = ['name','email','message'].map(name => form.elements.namedItem(name));
-  const mobile = matchMedia('(max-width: 760px)');
-  function updateKeyboardInset() {
-    const viewport = window.visualViewport;
-    const editing = form.contains(document.activeElement) && document.activeElement.matches('input, textarea');
-    const inset = mobile.matches && editing && viewport ? Math.max(0, innerHeight - viewport.height - viewport.offsetTop) : 0;
-    form.style.setProperty('--contact-keyboard-inset', `${inset}px`);
-  }
-  mobile.addEventListener('change', updateKeyboardInset);
-  window.visualViewport?.addEventListener('resize', updateKeyboardInset);
-  window.visualViewport?.addEventListener('scroll', updateKeyboardInset);
-  form.addEventListener('focusin', updateKeyboardInset);
-  form.addEventListener('focusout', () => requestAnimationFrame(updateKeyboardInset));
-  updateKeyboardInset();
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   const captions = ['A little idea. A little alchemy.', 'First ingredient, in.', 'Something good is brewing.', 'Your potion is ready to send.'];
   let bottle, loading = false, inView = false, raf = 0, last = 0, contextLost = false, emptyFrame = false;

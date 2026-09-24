@@ -110,7 +110,7 @@ dialog{border:0;background:var(--paper);color:var(--ink);border-radius:12px;widt
 .potion-progress.is-ready .potion-fallback{visibility:hidden}
 .potion-caption{font-family:var(--display);font-size:15px;line-height:1.5;margin:0 0 13px;min-height:23px}
 @media(max-width:760px){
-  .contact-form-footer{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px) + var(--contact-keyboard-inset,0px));z-index:3;display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:0 12px;margin-top:12px;padding:4px 0 8px;background:var(--paper);border-top:1px solid var(--line)}
+  .contact-form-footer{position:static;display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:0 12px;margin-top:12px;padding:4px 0 8px;background:var(--paper);border-top:1px solid var(--line)}
   .contact-form-footer .contact-send{width:100%;min-width:0;padding-inline:16px;grid-column:1;grid-row:1}
   .contact-potion-slot{display:block;grid-column:2;grid-row:1;min-width:0}
   .contact-form-footer>p{grid-column:1/-1}
