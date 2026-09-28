@@ -103,7 +103,7 @@ export async function createCharacter(container, { paused = false } = {}) {
       upperLeft:lidControl(find('UpperLid_L')), upperRight:lidControl(find('UpperLid_R')),
       lowerLeft:lidControl(find('LowerLid_L')), lowerRight:lidControl(find('LowerLid_R')),
     };
-    painterly = createPainterlyPass(renderer, scene, camera, { strength:1, brushScale:1.4 });
+    painterly = createPainterlyPass(renderer, scene, camera, { strength:1, brushScale:1.4, saturation:.78, shadowLift:.10 });
   } catch (error) { releaseScene(); throw error; }
   container.append(renderer.domElement);
   container.dataset.model = 'prism-v2-approved';

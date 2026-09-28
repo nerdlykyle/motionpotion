@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // Use with a transparent scene background, ACESFilmicToneMapping and sRGB output,
 // matching the approved site's color pipeline. Strength 1 preserves that pass;
 // the .65 default retains more of the repaired feature detail for this review.
-export function createPainterlyPass(renderer, scene, camera, {strength = .65, brushScale = 1} = {}) {
+export function createPainterlyPass(renderer, scene, camera, {strength = .65, brushScale = 1, saturation = 1, shadowLift = 0} = {}) {
   const clampStrength = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : .65, 0, 1);
   // Float attachments are optional even with WebGL 2. Keep the live model
   // visible on GPUs without them instead of sampling an incomplete framebuffer.
@@ -45,7 +45,7 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
       }`,
     toneMapped:false
   });
-  const uniforms={tColor:{value:color.texture},tPosition:{value:position.texture},resolution:{value:new THREE.Vector2(1,1)},exposure:{value:renderer.toneMappingExposure},paintStrength:{value:clampStrength(strength)},brushScale:{value:THREE.MathUtils.clamp(brushScale, .5, 2)}};
+  const uniforms={tColor:{value:color.texture},tPosition:{value:position.texture},resolution:{value:new THREE.Vector2(1,1)},exposure:{value:renderer.toneMappingExposure},paintStrength:{value:clampStrength(strength)},brushScale:{value:THREE.MathUtils.clamp(brushScale, .5, 2)},saturation:{value:THREE.MathUtils.clamp(saturation,0,1.5)},shadowLift:{value:THREE.MathUtils.clamp(shadowLift,0,.3)}};
   const material = new THREE.ShaderMaterial({
     uniforms,depthTest:false,depthWrite:false,transparent:true,premultipliedAlpha:true,toneMapped:false,
     vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
@@ -56,6 +56,8 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
       uniform float exposure;
       uniform float paintStrength;
       uniform float brushScale;
+      uniform float saturation;
+      uniform float shadowLift;
       varying vec2 vUv;
       vec3 hash3(vec3 p){return fract(sin(vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6))))*43758.5453);}
       vec3 displayColor(vec3 c){
@@ -64,7 +66,12 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
         c=inputMat*(c*exposure/.6);
         c=(c*(c+.0245786)-.000090537)/(c*(.983729*c+.432951)+.238081);
         c=clamp(outputMat*c,0.,1.);
-        return mix(12.92*c,1.055*pow(c,vec3(1./2.4))-.055,step(vec3(.0031308),c));
+        c=mix(12.92*c,1.055*pow(c,vec3(1./2.4))-.055,step(vec3(.0031308),c));
+        // The shaded source already contains strong color and dark shadows.
+        // Keep the paint detail while bringing its palette toward the prior model.
+        float neutral=dot(c,vec3(.2126,.7152,.0722));
+        c=mix(vec3(neutral),c,saturation);
+        return mix(c,vec3(.98,.975,.95),shadowLift*(1.-neutral));
       }
       vec4 samplePaint(vec2 uv){vec4 c=textureLod(tColor,uv,0.);return vec4(displayColor(c.rgb),c.a);}
       float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
