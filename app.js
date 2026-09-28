@@ -52,7 +52,7 @@ potionMobile.addEventListener('change', placeContactPotion);
 placeContactPotion();
 
 // Decorative feedback never changes the form fields or submits a demo message.
-import('./contact-potion.js?v=form-flow-3').then(({ mountContactPotion }) => {
+import('./contact-potion.js?v=painterly-4').then(({ mountContactPotion }) => {
   mountContactPotion(document.querySelector('#contact-potion'), contactForm, { sent: contactWasSent });
 }).catch(error => console.warn('Keeping the static potion illustration.', error));
 

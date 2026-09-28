@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // Use with a transparent scene background, ACESFilmicToneMapping and sRGB output,
 // matching the approved site's color pipeline. Strength 1 preserves that pass;
 // the .65 default retains more of the repaired feature detail for this review.
-export function createPainterlyPass(renderer, scene, camera, {strength = .65, brushScale = 1, saturation = 1, shadowLift = 0} = {}) {
+export function createPainterlyPass(renderer, scene, camera, {strength = .65, brushScale = 1, saturation = 1, shadowLift = 0, translucent = false, coordinateScale = 1} = {}) {
   const clampStrength = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : .65, 0, 1);
   // Float attachments are optional even with WebGL 2. Keep the live model
   // visible on GPUs without them instead of sampling an incomplete framebuffer.
@@ -21,15 +21,17 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
   const color = new THREE.WebGLRenderTarget(1, 1, {type:THREE.HalfFloatType, depthBuffer:true});
   const position = new THREE.WebGLRenderTarget(1, 1, {type:fullFloat && !mobile ? THREE.FloatType : THREE.HalfFloatType, depthBuffer:true,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter});
   const positionMaterial = new THREE.ShaderMaterial({
+    uniforms:{coordinateScale:{value:coordinateScale}},
     vertexShader:`
       #include <common>
       #include <morphtarget_pars_vertex>
       #include <skinning_pars_vertex>
       varying vec3 vRest;
+      uniform float coordinateScale;
       void main(){
         // Rest-space paint coordinates remain attached while the projection
         // follows both blinking morph targets and animated hair/head bones.
-        vRest=position;
+        vRest=position*coordinateScale;
         #include <morphinstance_vertex>
         #include <skinbase_vertex>
         #include <begin_vertex>
@@ -45,7 +47,7 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
       }`,
     toneMapped:false
   });
-  const uniforms={tColor:{value:color.texture},tPosition:{value:position.texture},resolution:{value:new THREE.Vector2(1,1)},exposure:{value:renderer.toneMappingExposure},paintStrength:{value:clampStrength(strength)},brushScale:{value:THREE.MathUtils.clamp(brushScale, .5, 2)},saturation:{value:THREE.MathUtils.clamp(saturation,0,1.5)},shadowLift:{value:THREE.MathUtils.clamp(shadowLift,0,.3)}};
+  const uniforms={tColor:{value:color.texture},tPosition:{value:position.texture},resolution:{value:new THREE.Vector2(1,1)},exposure:{value:renderer.toneMappingExposure},paintStrength:{value:clampStrength(strength)},brushScale:{value:THREE.MathUtils.clamp(brushScale, .5, 2)},saturation:{value:THREE.MathUtils.clamp(saturation,0,1.5)},shadowLift:{value:THREE.MathUtils.clamp(shadowLift,0,.3)},translucent:{value:translucent ? 1 : 0}};
   const material = new THREE.ShaderMaterial({
     uniforms,depthTest:false,depthWrite:false,transparent:true,premultipliedAlpha:true,toneMapped:false,
     vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
@@ -58,6 +60,7 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
       uniform float brushScale;
       uniform float saturation;
       uniform float shadowLift;
+      uniform float translucent;
       varying vec2 vUv;
       vec3 hash3(vec3 p){return fract(sin(vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6))))*43758.5453);}
       vec3 displayColor(vec3 c){
@@ -73,7 +76,13 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
         c=mix(vec3(neutral),c,saturation);
         return mix(c,vec3(.98,.975,.95),shadowLift*(1.-neutral));
       }
-      vec4 samplePaint(vec2 uv){vec4 c=textureLod(tColor,uv,0.);return vec4(displayColor(c.rgb),c.a);}
+      vec4 samplePaint(vec2 uv){
+        vec4 c=textureLod(tColor,uv,0.);
+        // The glass color target stores alpha-composited light. Unpremultiply
+        // before tone mapping so clear glass does not turn into dark paint.
+        vec3 rgb=translucent>.5 ? c.rgb/max(c.a,.0001) : c.rgb;
+        return vec4(displayColor(rgb),c.a);
+      }
       float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
       void main(){
         vec2 px=1./resolution;
@@ -107,7 +116,7 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
         }
         vec2 anchor=clamp(vec2(dot(delta,dx)/max(dot(dx,dx),.00000001),dot(delta,dy)/max(dot(dy,dy),.00000001)),vec2(-5.),vec2(5.));
         vec2 at=vUv+anchor*px*.38;
-        if(textureLod(tColor,at,0.).a<.85)at=vUv;
+        if(textureLod(tColor,at,0.).a<(translucent>.5 ? raw.a*.5 : .85))at=vUv;
         float gx=lum(samplePaint(vUv+vec2(px.x,0.)).rgb)-lum(samplePaint(vUv-vec2(px.x,0.)).rgb);
         float gy=lum(samplePaint(vUv+vec2(0.,px.y)).rgb)-lum(samplePaint(vUv-vec2(0.,px.y)).rgb);
         vec2 tangent=normalize(vec2(-gy,gx)+vec2(.0001));
@@ -119,15 +128,17 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
         for(int j=-2;j<=2;j++)for(int i=-2;i<=2;i++){
           vec2 d=(tangent*float(i)*.75+across*float(j)*.5)*radius*px;
           vec4 c=samplePaint(at+d);
-          float w=step(.8,c.a);
+          float w=translucent>.5 ? c.a : step(.8,c.a);
           if(i<=0&&j<=0){m0+=c.rgb*w;s0+=c.rgb*c.rgb*w;n0+=w;}
           if(i>=0&&j<=0){m1+=c.rgb*w;s1+=c.rgb*c.rgb*w;n1+=w;}
           if(i<=0&&j>=0){m2+=c.rgb*w;s2+=c.rgb*c.rgb*w;n2+=w;}
           if(i>=0&&j>=0){m3+=c.rgb*w;s3+=c.rgb*c.rgb*w;n3+=w;}
         }
-        m0/=max(n0,1.);m1/=max(n1,1.);m2/=max(n2,1.);m3/=max(n3,1.);
-        vec4 variance=vec4(length(abs(s0/max(n0,1.)-m0*m0)),length(abs(s1/max(n1,1.)-m1*m1)),length(abs(s2/max(n2,1.)-m2*m2)),length(abs(s3/max(n3,1.)-m3*m3)));
-        variance+=vec4(n0<2.?100.:0.,n1<2.?100.:0.,n2<2.?100.:0.,n3<2.?100.:0.);
+        float normFloor=translucent>.5 ? .0001 : 1.;
+        m0/=max(n0,normFloor);m1/=max(n1,normFloor);m2/=max(n2,normFloor);m3/=max(n3,normFloor);
+        vec4 variance=vec4(length(abs(s0/max(n0,normFloor)-m0*m0)),length(abs(s1/max(n1,normFloor)-m1*m1)),length(abs(s2/max(n2,normFloor)-m2*m2)),length(abs(s3/max(n3,normFloor)-m3*m3)));
+        float minimumWeight=translucent>.5 ? .01 : 2.;
+        variance+=vec4(n0<minimumWeight?100.:0.,n1<minimumWeight?100.:0.,n2<minimumWeight?100.:0.,n3<minimumWeight?100.:0.);
         float best=variance.x;vec3 paint=m0;
         if(variance.y<best){paint=m1;best=variance.y;}
         if(variance.z<best){paint=m2;best=variance.z;}
@@ -142,7 +153,7 @@ export function createPainterlyPass(renderer, scene, camera, {strength = .65, br
         paint=mix(paint,raw.rgb,max(nose*.58,mouth*.72)*smoothstep(.075,.095,rest.z));
         // A restrained painted silhouette, isolated from the page background.
         float alpha=raw.a;
-        if(alpha<.98){
+        if(alpha<.98 && translucent<.5){
           vec4 closest=raw;
           for(int k=0;k<8;k++){
             float a=float(k)*.785398;

@@ -31,6 +31,8 @@ Portfolio videos are served from `assets/videos/` through GitHub Pages, so the s
 
 The contact form collects name, reply email and message. It submits to FormSubmit's static-site endpoint for kyle@motionpotion.studio, with the subject “A new idea is brewing — Motion Potion”. A server-checked `_honey` field sits visually offscreen, outside keyboard and screen-reader navigation. FormSubmit's default CAPTCHA and spam filtering remain enabled. The form submits normally so a CAPTCHA challenge can run when needed; JavaScript supplies an absolute return URL and shows confirmation when FormSubmit sends the visitor back. Without JavaScript, FormSubmit shows its own thank-you page. FormSubmit must be activated before normal delivery: submit one real message and click the confirmation link sent to kyle@motionpotion.studio. The confirmation email may land in spam. Do not consider inbox delivery verified until that step is complete. FormSubmit handles the submitted contact details and retains submissions under its own policy.
 
+The contact bottle uses the shared `painterly.js` render pass over its glass, animated liquid, bubbles and flipping cork. Its translucent mode unpremultiplies glass color before tone mapping and weights brush samples by opacity, preserving see-through glass. Brush scale is 1.4 with full paint strength, saturation 0.9 and a small shadow lift. Matte materials soften liquid/cork/bubble highlights; filling, slosh and cork timing remain unchanged. The SVG fallback remains available on unsupported GPUs.
+
 ## Sources and licenses
 
 - Portfolio content and project images came from the existing Kyle Parsons website.
