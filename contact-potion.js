@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
-import { createPainterlyPass } from './painterly.js';
 
 const clamp = THREE.MathUtils.clamp;
 
@@ -68,8 +67,8 @@ function makeLiquid() {
   geometry.addGroup(0, sideCount, 0);
   geometry.addGroup(sideCount, indices.length - sideCount, 1);
   const mesh = new THREE.Mesh(geometry, [
-    new THREE.MeshStandardMaterial({color: '#282823', roughness: .84, side: THREE.DoubleSide}),
-    new THREE.MeshStandardMaterial({color: '#f2c83f', roughness: .76, side: THREE.DoubleSide})
+    new THREE.MeshStandardMaterial({color: '#282823', roughness: .48, side: THREE.DoubleSide}),
+    new THREE.MeshStandardMaterial({color: '#f2c83f', roughness: .4, side: THREE.DoubleSide})
   ]);
   mesh.frustumCulled = false;
   const put = (index, x, y, z) => { positions[index * 3] = x; positions[index * 3 + 1] = y - .95; positions[index * 3 + 2] = z; };
@@ -139,7 +138,7 @@ async function createBottle(stage) {
           }`
       });
       object.renderOrder = 3;
-    } else if (object.material) object.material.roughness = .74;
+    } else if (object.material) object.material.roughness = .42;
   });
   // Put the pivot inside the cork, not at the flask's origin. A full flip
   // must spin the stopper in place instead of orbiting around the bottle.
@@ -152,8 +151,8 @@ async function createBottle(stage) {
   const liquid = makeLiquid(); group.add(liquid.mesh);
   const bubbles = [];
   const sphere = new THREE.SphereGeometry(1, 16, 10);
-  const gold = new THREE.MeshStandardMaterial({color:'#f2c83f',roughness:.74});
-  const cream = new THREE.MeshStandardMaterial({color:'#fff8de',roughness:.82});
+  const gold = new THREE.MeshStandardMaterial({color:'#f2c83f',roughness:.36});
+  const cream = new THREE.MeshStandardMaterial({color:'#fff8de',roughness:.4});
   for (let i = 0; i < 9; i++) {
     const mesh = new THREE.Mesh(sphere, i % 3 ? cream : gold);
     group.add(mesh); bubbles.push(mesh);
@@ -163,13 +162,6 @@ async function createBottle(stage) {
     const mesh = new THREE.Mesh(sphere, i % 2 ? gold : cream);
     group.add(mesh); pops.push(mesh);
   }
-  // Paint the whole animated scene, including its translucent shell. Scale
-  // the stroke coordinates for a flask much larger than the portrait model.
-  const painterly = createPainterlyPass(renderer, scene, camera, {
-    strength:1, brushScale:1.4, saturation:.9, shadowLift:.025,
-    translucent:true, coordinateScale:.16,
-  });
-  stage.dataset.painterly = painterly.mode;
   stage.append(renderer.domElement);
   let needsFrameCheck = true, frameVisible = false;
   function resize() {
@@ -178,7 +170,6 @@ async function createBottle(stage) {
     const flightSpace = parseFloat(getComputedStyle(stage).getPropertyValue('--potion-flight-space')) || 0;
     Object.assign(camera, potionFrustum(width, height, flightSpace));
     camera.updateProjectionMatrix(); renderer.setSize(width, height, false);
-    painterly.resize(width, height);
     needsFrameCheck = true;
   }
   const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(stage); resize();
@@ -212,7 +203,7 @@ async function createBottle(stage) {
       const size = (.04 + i % 3 * .013) * Math.max(0, 1 - t / 1.5);
       bubble.scale.set(size * (1 + t * .3), size * (1 - Math.min(.4, t*.2)), size);
     });
-    painterly.render();
+    renderer.render(scene, camera);
     // A successful render() call does not prove a mobile GPU drew the model.
     // Verify once after setup/resize/restoration, never on every animation frame.
     if (needsFrameCheck) {
