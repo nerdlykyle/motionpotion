@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "node server.mjs",
     "build": "node build.mjs",
-    "check": "node --check app.js && node --check character.js && node --check painterly.js && node --check quiff.js && node --check contact-potion.js && node --check server.mjs && node --check build.mjs"
+    "check": "node --check app.js && node --check character.js && node --check character-motion.js && node --check painterly.js && node --check quiff.js && node --check contact-potion.js && node --check server.mjs && node --check build.mjs && node --test tests/character-motion.test.mjs"
   }
 }

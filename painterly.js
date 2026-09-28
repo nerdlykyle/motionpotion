@@ -3,13 +3,18 @@ import * as THREE from 'three';
 // Browser adaptation of the tutorial's render-space workflow: paint the lit
 // character including the eyes, anchor strokes to object position, soften edges.
 // The Blender file retains the actual official compositor asset separately.
-export function createPainterlyPass(renderer, scene, camera) {
+// Use with a transparent scene background, ACESFilmicToneMapping and sRGB output,
+// matching the approved site's color pipeline. Strength 1 preserves that pass;
+// the .65 default retains more of the repaired feature detail for this review.
+export function createPainterlyPass(renderer, scene, camera, {strength = .65, brushScale = 1} = {}) {
+  const clampStrength = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : .65, 0, 1);
   // Float attachments are optional even with WebGL 2. Keep the live model
   // visible on GPUs without them instead of sampling an incomplete framebuffer.
   const fullFloat = renderer.extensions.has('EXT_color_buffer_float');
   const halfFloat = fullFloat || renderer.extensions.has('EXT_color_buffer_half_float');
   if (!halfFloat) return {
-    mode: 'direct', resize() {}, dispose() {},
+    mode: 'direct', resize() {}, dispose() {}, setStrength() {},
+    get strength() { return 0; },
     render() { renderer.setRenderTarget(null); renderer.render(scene, camera); }
   };
   const mobile = matchMedia('(pointer: coarse)').matches;
@@ -18,12 +23,17 @@ export function createPainterlyPass(renderer, scene, camera) {
   const positionMaterial = new THREE.ShaderMaterial({
     vertexShader:`
       #include <common>
+      #include <morphtarget_pars_vertex>
       #include <skinning_pars_vertex>
       varying vec3 vRest;
       void main(){
+        // Rest-space paint coordinates remain attached while the projection
+        // follows both blinking morph targets and animated hair/head bones.
         vRest=position;
+        #include <morphinstance_vertex>
         #include <skinbase_vertex>
         #include <begin_vertex>
+        #include <morphtarget_vertex>
         #include <skinning_vertex>
         #include <project_vertex>
       }`,
@@ -35,7 +45,7 @@ export function createPainterlyPass(renderer, scene, camera) {
       }`,
     toneMapped:false
   });
-  const uniforms={tColor:{value:color.texture},tPosition:{value:position.texture},resolution:{value:new THREE.Vector2(1,1)},exposure:{value:renderer.toneMappingExposure}};
+  const uniforms={tColor:{value:color.texture},tPosition:{value:position.texture},resolution:{value:new THREE.Vector2(1,1)},exposure:{value:renderer.toneMappingExposure},paintStrength:{value:clampStrength(strength)},brushScale:{value:THREE.MathUtils.clamp(brushScale, .5, 2)}};
   const material = new THREE.ShaderMaterial({
     uniforms,depthTest:false,depthWrite:false,transparent:true,premultipliedAlpha:true,toneMapped:false,
     vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
@@ -44,6 +54,8 @@ export function createPainterlyPass(renderer, scene, camera) {
       uniform sampler2D tColor,tPosition;
       uniform vec2 resolution;
       uniform float exposure;
+      uniform float paintStrength;
+      uniform float brushScale;
       varying vec2 vUv;
       vec3 hash3(vec3 p){return fract(sin(vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6))))*43758.5453);}
       vec3 displayColor(vec3 c){
@@ -59,6 +71,9 @@ export function createPainterlyPass(renderer, scene, camera) {
       void main(){
         vec2 px=1./resolution;
         vec4 raw=samplePaint(vUv);
+        if(paintStrength<=0.){
+          gl_FragColor=vec4(raw.rgb*raw.a,raw.a);return;
+        }
         vec4 pos=textureLod(tPosition,vUv,0.);
         vec3 rest=(pos.xyz-.5)/.75;
         vec3 dx=dFdx(rest),dy=dFdy(rest);
@@ -70,10 +85,10 @@ export function createPainterlyPass(renderer, scene, camera) {
             if(c.a>edge.a)edge=c;
           }
           float alpha=edge.a*.23;
-          gl_FragColor=vec4(edge.rgb*alpha,alpha);return;
+          gl_FragColor=mix(vec4(raw.rgb*raw.a,raw.a),vec4(edge.rgb*alpha,alpha),paintStrength);return;
         }
         // World-position seeded brush cells stay on the moving head.
-        vec3 freq=vec3(155.,195.,145.);
+        vec3 freq=vec3(155.,195.,145.)/brushScale;
         vec3 cell=floor(rest*freq),local=fract(rest*freq);
         float nearest=1e8,second=1e8;vec3 delta=vec3(0.),seed=vec3(0.);
         for(int z=-1;z<=1;z++)for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
@@ -90,7 +105,7 @@ export function createPainterlyPass(renderer, scene, camera) {
         float gy=lum(samplePaint(vUv+vec2(0.,px.y)).rgb)-lum(samplePaint(vUv-vec2(0.,px.y)).rgb);
         vec2 tangent=normalize(vec2(-gy,gx)+vec2(.0001));
         vec2 across=vec2(tangent.y,-tangent.x);
-        float radius=1.8+seed.y*1.4;
+        float radius=(1.8+seed.y*1.4)*brushScale;
         vec3 m0=vec3(0.),m1=vec3(0.),m2=vec3(0.),m3=vec3(0.);
         vec3 s0=vec3(0.),s1=vec3(0.),s2=vec3(0.),s3=vec3(0.);
         float n0=0.,n1=0.,n2=0.,n3=0.;
@@ -130,7 +145,9 @@ export function createPainterlyPass(renderer, scene, camera) {
           paint=mix(closest.rgb,paint,step(.8,raw.a));
           alpha=max(alpha,closest.a*.23);
         }
-        gl_FragColor=vec4(paint*alpha,alpha);
+        // Blend premultiplied color and alpha together, so decreasing strength
+        // also decreases edge paint instead of leaving a full-strength halo.
+        gl_FragColor=mix(vec4(raw.rgb*raw.a,raw.a),vec4(paint*alpha,alpha),paintStrength);
       }`
   });
   const postScene=new THREE.Scene();
@@ -138,6 +155,8 @@ export function createPainterlyPass(renderer, scene, camera) {
   const postCamera=new THREE.Camera();
   return {
     mode: mobile ? 'painterly-mobile' : 'painterly',
+    get strength(){return uniforms.paintStrength.value;},
+    setStrength(value){uniforms.paintStrength.value=clampStrength(value);},
     resize(width,height){
       // CSS-pixel scale keeps the strokes visible on high-DPI displays too.
       color.setSize(Math.max(1,Math.round(width)),Math.max(1,Math.round(height)));
@@ -145,10 +164,15 @@ export function createPainterlyPass(renderer, scene, camera) {
     },
     render(){
       const override=scene.overrideMaterial;
-      renderer.setRenderTarget(color);renderer.clear();renderer.render(scene,camera);
-      scene.overrideMaterial=positionMaterial;
-      renderer.setRenderTarget(position);renderer.clear();renderer.render(scene,camera);
-      scene.overrideMaterial=override;
+      uniforms.exposure.value=renderer.toneMappingExposure;
+      try {
+        renderer.setRenderTarget(color);renderer.clear();renderer.render(scene,camera);
+        scene.overrideMaterial=positionMaterial;
+        renderer.setRenderTarget(position);renderer.clear();renderer.render(scene,camera);
+      } finally {
+        scene.overrideMaterial=override;
+        renderer.setRenderTarget(null);
+      }
       renderer.setRenderTarget(null);renderer.clear();renderer.render(postScene,postCamera);
     },
     dispose(){color.dispose();position.dispose();positionMaterial.dispose();material.dispose();quad.geometry.dispose();}
