@@ -149,6 +149,7 @@ import('./character.js').then(async ({ createCharacter }) => {
 });
 
 const projects = {
+  lossnay: { title: 'Lossnay — Residential Launch', category: 'PRODUCT LAUNCH', description: 'A residential launch film for Lossnay, combining product animation, a home cutaway, and installation footage.', poster: './assets/lossnay.jpg', video: './assets/videos/lossnay.mp4' },
   filth: { title: 'Bread & Butter — Introducing Filth', category: 'PRODUCT FILM', description: 'A product introduction for Bread & Butter Pickleball’s Filth paddle.', poster: './assets/filth.jpg', video: './assets/videos/filth.mp4' },
   go: { title: 'GO! Curriculum', category: 'ANIMATED EXPLAINER', description: 'An animated introduction to GO! Curriculum for youth programs.', poster: './assets/go-curriculum.jpg', video: './assets/videos/go.mp4' },
   urjanet: { title: 'Urjanet', category: 'BRAND STORY / EXPLAINER', description: 'A provider engagement explainer for Urjanet.', poster: './assets/urjanet.jpg', video: './assets/videos/urjanet.mp4' },
