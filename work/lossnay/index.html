@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Residential Ducted Lossnay® — Product demo</title>
+  <meta name="description" content="Explore how Residential Ducted Lossnay® exhausts stale indoor air, brings in filtered outdoor air and captures energy in the Lossnay core." />
+  <script>
+    // ── Site settings (edit for each placement) ──────────────────────────────
+    // cta.enabled: show a call-to-action button. Leave off on mitsubishicomfort.com,
+    // where the page itself is the CTA. Turn on for standalone/social links.
+    window.LOSSNAY_CONFIG = {
+      cta: { enabled: false, label: 'Find a contractor', url: '' },
+      start: 'tour',      // 'tour' or 'explore'
+      showHeader: true,
+    };
+  </script>
+  <script type="module" crossorigin src="./assets/lossnay-interactive.js?v=mv000ne5"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index.css?v=mv000ne5">
+</head>
+<body>
+  <div id="app" class="app is-loading">
+    <div class="orb" aria-hidden="true"></div>
+    <div id="stage" class="stage"></div>
+    <div id="hotspots" class="hotspots" aria-label="Product hotspots"></div>
+    <div id="ui"></div>
+  </div>
+  <noscript><p style="font-family:sans-serif;padding:24px">This interactive experience needs JavaScript.</p></noscript>
+</body>
+</html>

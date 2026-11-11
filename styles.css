@@ -125,3 +125,10 @@ dialog{border:0;background:var(--paper);color:var(--ink);border-radius:12px;widt
 
 /* The newest launch film leads Selected Work; existing cards retain their layout. */
 .project-featured{grid-column:1/-1}.project-featured .project-image{height:auto;aspect-ratio:16/9}
+
+/* Self-contained product experience directly below the Lossnay launch film. */
+.work-demo{grid-column:1/-1;min-width:0;border:1px solid var(--line,#cccbbf);border-radius:6px;overflow:hidden;background:#fff}
+.work-demo-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:24px 28px;background:var(--paper);border-bottom:1px solid var(--line,#cccbbf)}
+.work-demo-heading .eyebrow{margin:0 0 8px}.work-demo-heading h3{font:700 26px/1.15 var(--display);letter-spacing:-.8px;margin:0}
+.work-demo-heading .text-link{flex-shrink:0}.work-demo-frame{display:block;width:100%;height:clamp(560px,56vw,720px);border:0;background:#fff}
+@media(max-width:760px){.work-demo-heading{padding:20px;align-items:flex-start;flex-direction:column;gap:14px}.work-demo-heading h3{font-size:23px}.work-demo-frame{height:680px}}

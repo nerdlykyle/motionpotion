@@ -14,4 +14,5 @@ for(const entry of await readdir(new URL('assets/',root),{withFileTypes:true})) 
 await copyFile(new URL('assets/models/kyle-prism-v2-web.glb',root),new URL('assets/models/kyle-prism-v2-web.glb',dist));
 await copyFile(new URL('assets/models/potion-form.glb',root),new URL('assets/models/potion-form.glb',dist));
 await cp(new URL('assets/videos/',root),new URL('assets/videos/',dist),{recursive:true});
+await cp(new URL('work/lossnay/',root),new URL('work/lossnay/',dist),{recursive:true});
 console.log('GitHub Pages site built in dist/');
